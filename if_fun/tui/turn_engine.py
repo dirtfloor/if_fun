@@ -1,5 +1,7 @@
 """Turn engine: parser + state store + save/load. No UI, no LLM."""
 
+from typing import assert_never
+
 from if_fun.parser.grammar import MetaVerb
 from if_fun.parser.parser import DirectionCommand, MetaCommand, ParseError, parse
 from if_fun.save.save_format import read_save, write_save
@@ -41,21 +43,22 @@ class TurnEngine:
                 return "You can't go that way."
             return self._post_turn()
 
-        # Exhaustiveness: ParsedCommand = Action | DirectionCommand | MetaCommand | ParseError,
-        # and the other three branches returned above.
-        assert isinstance(cmd, Action)
+        if isinstance(cmd, Action):
+            if cmd.verb == "look" and cmd.direct_object is None:
+                return self.describe_current_room()
+            if cmd.verb == "inventory" and cmd.direct_object is None:
+                items = ", ".join(self._world.player.inventory) or "nothing"
+                return f"You carry: {items}"
 
-        if cmd.verb == "look" and cmd.direct_object is None:
-            return self.describe_current_room()
-        if cmd.verb == "inventory" and cmd.direct_object is None:
-            items = ", ".join(self._world.player.inventory) or "nothing"
-            return f"You carry: {items}"
+            try:
+                self._world = apply_action(self._world, cmd)
+            except IllegalAction:
+                return "You can't do that."
+            return self._post_turn()
 
-        try:
-            self._world = apply_action(self._world, cmd)
-        except IllegalAction:
-            return "You can't do that."
-        return self._post_turn()
+        # Static exhaustiveness over ParsedCommand: if the union grows, ty
+        # flags this call site before runtime.
+        assert_never(cmd)
 
     def save(self, slot: str) -> None:
         write_save(slot, self._world)
