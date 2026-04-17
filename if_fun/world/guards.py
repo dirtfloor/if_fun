@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from if_fun.ids import ItemId, RoomId
 
 if TYPE_CHECKING:
-    from if_fun.world.state import WorldState  # ty: ignore[unresolved-import]
+    from if_fun.world.state import WorldState
 
 
 class _GuardBase(BaseModel):

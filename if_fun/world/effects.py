@@ -13,7 +13,7 @@ from if_fun.ids import EventId, ItemId, RoomId
 from if_fun.world.events import Event, EventKind
 
 if TYPE_CHECKING:
-    from if_fun.world.state import WorldState  # ty: ignore[unresolved-import]
+    from if_fun.world.state import WorldState
 
 
 class _EffectBase(BaseModel):
