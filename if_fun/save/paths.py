@@ -15,8 +15,10 @@ def state_dir() -> Path:
 
 
 def saves_dir() -> Path:
+    """Return the directory that holds save-slot JSON files."""
     return state_dir() / "saves"
 
 
 def save_path(slot: str) -> Path:
+    """Return the full path to a save slot's JSON file."""
     return saves_dir() / f"{slot}.json"

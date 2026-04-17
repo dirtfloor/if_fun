@@ -1,3 +1,5 @@
+"""Tests for the JSON save format."""
+
 from pathlib import Path
 
 import pytest
@@ -38,7 +40,8 @@ def test_save_path_joins_slot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
 def test_write_and_read_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("IF_FUN_STATE_DIR", str(tmp_path))
     w = _tiny_world()
-    write_save("slot1", w)
+    written = write_save("slot1", w)
+    assert written == save_path("slot1")
     restored = read_save("slot1")
     assert restored == w
 
@@ -59,3 +62,35 @@ def test_read_save_garbage_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     p.write_text("this is not json")
     with pytest.raises(SaveFormatError):
         read_save("garbage")
+
+
+def test_read_save_missing_file_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("IF_FUN_STATE_DIR", str(tmp_path))
+    with pytest.raises(SaveFormatError):
+        read_save("nonexistent_slot")
+
+
+def test_read_save_validation_error_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("IF_FUN_STATE_DIR", str(tmp_path))
+    p = save_path("broken")
+    p.parent.mkdir(parents=True, exist_ok=True)
+    # Syntactically valid JSON that does not validate as a WorldState.
+    p.write_text('{"schema_version": 1, "rooms": "not_a_dict"}')
+    with pytest.raises(SaveFormatError) as excinfo:
+        read_save("broken")
+    # Must be the base class, not SchemaVersionMismatch.
+    assert not isinstance(excinfo.value, SchemaVersionMismatch)
+
+
+def test_read_save_older_version_without_migration_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("IF_FUN_STATE_DIR", str(tmp_path))
+    p = save_path("ancient")
+    p.parent.mkdir(parents=True, exist_ok=True)
+    # schema_version=0 is below CURRENT_SCHEMA_VERSION (1) and has no migration
+    # registered — should raise plain SaveFormatError, not SchemaVersionMismatch.
+    p.write_text('{"schema_version": 0}')
+    with pytest.raises(SaveFormatError) as excinfo:
+        read_save("ancient")
+    assert not isinstance(excinfo.value, SchemaVersionMismatch)
