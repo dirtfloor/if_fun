@@ -27,7 +27,12 @@ def find_transition(world: WorldState, action: Action) -> Transition | None:
 
 
 def find_direction_transition(world: WorldState, direction: Direction) -> Transition | None:
-    """Match a direction to a transition in the player's current room."""
+    """Match a direction to a transition in the player's current room.
+
+    An explicit DirectionTrigger transition takes precedence over a bare exit:
+    if a room defines both, the explicit (possibly guarded) transition is
+    returned and the bare-exit fallback is never reached.
+    """
     room = world.rooms[world.player.location]
     for tr in room.transitions:
         if isinstance(tr.trigger, DirectionTrigger) and tr.trigger.direction is direction:

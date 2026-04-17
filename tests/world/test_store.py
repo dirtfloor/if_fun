@@ -125,3 +125,25 @@ def test_apply_action_is_pure() -> None:
     before = w.model_dump_json()
     _ = apply_action(w, Action(verb="take", direct_object=ItemId("brass_key")))
     assert w.model_dump_json() == before  # input untouched
+
+
+def test_find_transition_returns_none_for_unknown_action() -> None:
+    w = _two_room_world()
+    tr = find_transition(w, Action(verb="open", direct_object=ItemId("door")))
+    assert tr is None
+
+
+def test_find_direction_transition_implicit_fallback_for_bare_exit() -> None:
+    # library has exits={Direction.SOUTH: RoomId("entry_hall")} and no transitions.
+    from if_fun.world.store import apply_direction, find_direction_transition
+
+    w = _two_room_world().model_copy(update={"player": PlayerState(location=RoomId("library"))})
+    tr = find_direction_transition(w, Direction.SOUTH)
+    assert tr is not None
+    assert tr.id == "_implicit_move_south"
+    assert tr.guards == []
+    assert tr.effects == [MovePlayerEffect(room_id=RoomId("entry_hall"))]
+
+    # And it is usable via apply_direction.
+    w2 = apply_direction(w, Direction.SOUTH)
+    assert w2.player.location == RoomId("entry_hall")
