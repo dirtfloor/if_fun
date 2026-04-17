@@ -34,3 +34,13 @@ def test_event_kind_enum_values_are_stable() -> None:
     assert EventKind.ITEM_DROPPED.value == "item_dropped"
     assert EventKind.ROOM_FLAG_CHANGED.value == "room_flag_changed"
     assert EventKind.GLOBAL_FLAG_CHANGED.value == "global_flag_changed"
+
+
+def test_event_fields_are_immutable_after_construction() -> None:
+    ev = Event(
+        id=EventId("evt_0003"),
+        turn=0,
+        kind=EventKind.PLAYER_MOVED,
+    )
+    with pytest.raises(ValidationError):
+        ev.turn = 1  # type: ignore[misc]

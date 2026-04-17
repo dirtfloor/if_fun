@@ -1,4 +1,10 @@
-"""Event records appended to the world event log."""
+"""Event records appended to the world event log.
+
+Note: Event is frozen (fields cannot be reassigned), but ``payload`` is a
+plain dict — its contents remain mutable. Callers should not rely on deep
+immutability, and Event instances should not be hashed while payload is
+non-empty (dicts are unhashable).
+"""
 
 from enum import StrEnum
 from typing import Any
