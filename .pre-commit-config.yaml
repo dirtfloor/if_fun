@@ -1,19 +1,27 @@
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.10
-    hooks:
-      - id: ruff-format
-      - id: ruff
-        args: [--fix]
-
   - repo: local
     hooks:
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+        pass_filenames: true
+
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+        pass_filenames: true
+
       - id: ty
         name: ty type check
         entry: uv run ty check
         language: system
         pass_filenames: false
         types: [python]
+
       - id: pytest
         name: pytest (deterministic only)
         entry: uv run pytest -q
