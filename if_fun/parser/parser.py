@@ -52,12 +52,20 @@ def parse(raw: str) -> ParsedCommand:
         d = Direction.from_token(tokens[0])
         if d is not None:
             return DirectionCommand(direction=d)
+        # Bare "go" (or any alias of it) is nonsense — it has no generic
+        # verb-object meaning; fail fast rather than fall through to the
+        # single-word verb branch which would return Action(verb="go").
+        if canonical_verb(tokens[0]) == "go":
+            return ParseError("'go' requires a direction")
 
-    # "go north" / "walk south".
+    # "go north" / "walk south". If the second token is not a direction,
+    # reject rather than fall through to the generic verb-object tail,
+    # which would silently produce Action(verb="go", direct_object=...).
     if len(tokens) == 2 and canonical_verb(tokens[0]) == "go":
         d = Direction.from_token(tokens[1])
         if d is not None:
             return DirectionCommand(direction=d)
+        return ParseError(f"unknown direction: {tokens[1]!r}")
 
     # Two-word verb alias (e.g. "look at ..."): try before single-word lookup.
     if len(tokens) >= 2:

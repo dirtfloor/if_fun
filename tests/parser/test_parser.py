@@ -14,7 +14,7 @@ from if_fun.parser.parser import (
 from if_fun.world.transitions import Action
 
 
-def _unwrap(cmd: ParsedCommand) -> ParsedCommand:
+def _unwrap(cmd: ParsedCommand) -> Action | DirectionCommand | MetaCommand:
     assert not isinstance(cmd, ParseError), cmd.message
     return cmd
 
@@ -105,3 +105,22 @@ def test_parse_empty_is_error() -> None:
 def test_parse_unknown_verb_is_error() -> None:
     cmd = parse("hovercraft eels")
     assert isinstance(cmd, ParseError)
+
+
+def test_parse_bare_go_is_error() -> None:
+    # "go" alone has no generic meaning — must not coerce to Action(verb="go").
+    cmd = parse("go")
+    assert isinstance(cmd, ParseError)
+
+
+def test_parse_go_with_non_direction_is_error() -> None:
+    # "go foo" must not silently produce Action(verb="go", direct_object="foo").
+    cmd = parse("go foo")
+    assert isinstance(cmd, ParseError)
+
+
+def test_parse_examine_single_token_is_action() -> None:
+    # Regression guard for the short-alias branch.
+    cmd = _unwrap(parse("x"))
+    assert isinstance(cmd, Action)
+    assert cmd.verb == "examine"
