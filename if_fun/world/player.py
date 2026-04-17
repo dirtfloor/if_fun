@@ -1,4 +1,10 @@
-"""Player character state."""
+"""Player character state.
+
+PlayerState is frozen (fields cannot be reassigned), but ``flags`` is a
+plain dict — its contents remain mutable. Callers should not rely on deep
+immutability. PlayerState instances are never hashable because ``flags``
+is a dict; do not use them as dict keys or set members.
+"""
 
 from typing import Any
 

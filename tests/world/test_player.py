@@ -1,3 +1,6 @@
+import pytest
+from pydantic import ValidationError
+
 from if_fun.ids import ItemId, RoomId
 from if_fun.world.player import PlayerState
 
@@ -26,3 +29,17 @@ def test_player_roundtrips_through_json() -> None:
     )
     restored = PlayerState.model_validate_json(p.model_dump_json())
     assert restored == p
+
+
+def test_player_coerces_plain_set_to_frozenset() -> None:
+    p = PlayerState(
+        location=RoomId("entry_hall"),
+        inventory={ItemId("brass_key"), ItemId("lantern")},  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
+    )
+    assert isinstance(p.inventory, frozenset)
+
+
+def test_player_fields_are_immutable_after_construction() -> None:
+    p = PlayerState(location=RoomId("entry_hall"))
+    with pytest.raises(ValidationError):
+        p.location = RoomId("other_room")  # type: ignore[misc]
