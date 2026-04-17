@@ -1,0 +1,48 @@
+[project]
+name = "if_fun"
+version = "0.1.0"
+description = "Interactive Fiction game in the Infocom tradition, built as a showcase of agentic AI patterns."
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.7",
+    "textual>=0.60",
+    "typer>=0.12",
+    "platformdirs>=4.2",
+]
+
+[project.scripts]
+if_fun = "if_fun.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+    "ty>=0.0.1a1",
+    "pre-commit>=3.7",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["if_fun"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["E501"]  # line-too-long is covered by the formatter
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "eval_smoke: small live-LLM eval suite, nightly (Phase B+)",
+    "eval_full: full live-LLM eval suite, manual or weekly (Phase B+)",
+]
