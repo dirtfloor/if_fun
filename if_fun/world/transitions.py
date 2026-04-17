@@ -50,5 +50,5 @@ class Transition(BaseModel):
     name: str
     trigger: Trigger
     guards: list[Guard] = Field(default_factory=list)
-    effects: list[Effect]
+    effects: list[Effect] = Field(min_length=1)
     narration_hint: str | None = None

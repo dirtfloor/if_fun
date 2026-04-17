@@ -1,15 +1,17 @@
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from if_fun.ids import Direction, ItemId, RoomId
-from if_fun.world.effects import MovePlayerEffect
-from if_fun.world.guards import PlayerInRoomGuard
+from if_fun.ids import Direction, EventId, ItemId, RoomId
+from if_fun.world.effects import EmitEventEffect, MovePlayerEffect
+from if_fun.world.events import EventKind
+from if_fun.world.guards import HasItemGuard, PlayerInRoomGuard
 from if_fun.world.transitions import (
     Action,
     DirectionTrigger,
     TimeTrigger,
     Transition,
     Trigger,
+    VerbObjectTrigger,
 )
 
 TriggerAdapter = TypeAdapter(Trigger)
@@ -49,3 +51,36 @@ def test_time_trigger_validates_positive_period() -> None:
     assert TimeTrigger(period=1).period == 1
     with pytest.raises(ValidationError):
         TimeTrigger(period=0)
+
+
+def test_transition_rejects_empty_effects_list() -> None:
+    with pytest.raises(ValidationError):
+        Transition(
+            id="noop",
+            name="no-op",
+            trigger=DirectionTrigger(direction=Direction.NORTH),
+            effects=[],
+        )
+
+
+def test_transition_complex_roundtrip_with_verb_object_trigger() -> None:
+    tr = Transition(
+        id="take_key",
+        name="take brass key",
+        trigger=VerbObjectTrigger(verb="take", direct_object=ItemId("brass_key")),
+        guards=[
+            PlayerInRoomGuard(room_id=RoomId("entry_hall")),
+            HasItemGuard(item_id=ItemId("lantern")),
+        ],
+        effects=[
+            MovePlayerEffect(room_id=RoomId("entry_hall")),
+            EmitEventEffect(
+                event_id=EventId("evt_take_key"),
+                kind=EventKind.ITEM_TAKEN,
+                payload={"item": "brass_key"},
+            ),
+        ],
+        narration_hint="You take the brass key.",
+    )
+    restored = Transition.model_validate_json(tr.model_dump_json())
+    assert restored == tr
