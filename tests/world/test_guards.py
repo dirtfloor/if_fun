@@ -35,3 +35,14 @@ def test_all_guard_types_roundtrip() -> None:
     for g in guards:
         restored = GuardAdapter.validate_python(g.model_dump())
         assert restored == g
+
+
+def test_guard_missing_required_field_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        GuardAdapter.validate_python({"type": "has_item"})
+
+
+def test_guard_roundtrips_through_json() -> None:
+    g = HasItemGuard(item_id=ItemId("brass_key"))
+    restored = GuardAdapter.validate_json(g.model_dump_json())
+    assert restored == g

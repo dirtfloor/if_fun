@@ -2,9 +2,11 @@
 
 All Guard variants are frozen pydantic models. Guards are never hashable
 while they carry dict-typed ``value`` fields, so do not store them in sets.
+``value`` fields accept any JSON-compatible type; non-JSON-native Python
+types (e.g. tuples, sets) will coerce on JSON round-trip.
 """
 
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal, assert_never
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -58,3 +60,5 @@ def evaluate(guard: Guard, world: "WorldState") -> bool:
             return room is not None and room.flags.get(flag) == value
         case GlobalFlagEqualsGuard(flag=flag, value=value):
             return world.globals.get(flag) == value
+        case _ as unreachable:
+            assert_never(unreachable)
