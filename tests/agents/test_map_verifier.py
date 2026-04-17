@@ -31,7 +31,7 @@ def test_connected_two_room_map_passes() -> None:
     )
     verdict = verify_map(_world(rooms))
     assert verdict.ok
-    assert verdict.issues == []
+    assert verdict.issues == ()
 
 
 def test_orphan_room_flagged() -> None:
@@ -73,3 +73,4 @@ def test_empty_map_flagged() -> None:
         )
     )
     assert not verdict.ok
+    assert verdict.issues == ("map has no rooms",)
