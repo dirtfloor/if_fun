@@ -26,3 +26,5 @@ def test_direction_from_token_accepts_full_and_short() -> None:
     assert Direction.from_token("NORTH") is Direction.NORTH
     assert Direction.from_token("up") is Direction.UP
     assert Direction.from_token("xyzzy") is None
+    assert Direction.from_token("  north  ") is Direction.NORTH
+    assert Direction.from_token("") is None

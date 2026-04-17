@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from enum import StrEnum
 from typing import NewType
 
@@ -17,11 +15,11 @@ class Direction(StrEnum):
     UP = "up"
     DOWN = "down"
 
-    def opposite(self) -> Direction:
+    def opposite(self) -> "Direction":
         return _OPPOSITES[self]
 
     @classmethod
-    def from_token(cls, token: str) -> Direction | None:
+    def from_token(cls, token: str) -> "Direction | None":
         return _TOKEN_TO_DIRECTION.get(token.strip().lower())
 
 
