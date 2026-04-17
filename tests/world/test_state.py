@@ -1,4 +1,4 @@
-from if_fun.ids import EventId, RoomId
+from if_fun.ids import EventId, ItemId, RoomId
 from if_fun.world.events import Event, EventKind
 from if_fun.world.player import PlayerState
 from if_fun.world.rooms import RoomState
@@ -58,4 +58,19 @@ def test_win_condition_global_flag_equals() -> None:
     w = _minimal_world().model_copy(update={"win_condition": wc})
     assert not w.is_won()
     w2 = w.model_copy(update={"globals": {"crystal_recovered": True}})
+    assert w2.is_won()
+
+
+def test_win_condition_has_item() -> None:
+    wc = WinCondition(kind="has_item", args={"item_id": "crystal_shard"})
+    w = _minimal_world().model_copy(update={"win_condition": wc})
+    assert not w.is_won()
+    w2 = w.model_copy(
+        update={
+            "player": PlayerState(
+                location=RoomId("entry_hall"),
+                inventory=frozenset({ItemId("crystal_shard")}),
+            )
+        }
+    )
     assert w2.is_won()
