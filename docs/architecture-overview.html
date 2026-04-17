@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>if_fun — Architecture Overview</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --bg-raised: #161a22;
+    --bg-card: #1c2130;
+    --border: #2a3040;
+    --border-strong: #3d4560;
+    --text: #e6e8ef;
+    --text-dim: #9aa3b8;
+    --text-faint: #6b7489;
+    --accent: #7dd3fc;
+    --accent-2: #c4b5fd;
+    --accent-3: #86efac;
+    --accent-warn: #fbbf24;
+    --accent-bad: #fb7185;
+    --mech: #86efac;
+    --prose: #7dd3fc;
+    --persona: #c4b5fd;
+    --pattern: #fbbf24;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --body: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--body);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 32px 40px 120px; }
+  header {
+    padding: 40px 0 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  header h1 {
+    font-size: 32px;
+    font-weight: 600;
+    margin: 0 0 6px;
+    letter-spacing: -0.02em;
+  }
+  header .sub {
+    color: var(--text-dim);
+    font-size: 15px;
+  }
+  header .tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    background: rgba(125, 211, 252, 0.08);
+    border: 1px solid rgba(125, 211, 252, 0.2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-right: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  nav.toc {
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    padding: 12px 0;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    z-index: 10;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  nav.toc a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+  }
+  nav.toc a:hover {
+    color: var(--text);
+    background: var(--bg-raised);
+    border-color: var(--border);
+  }
+  section { margin-bottom: 56px; scroll-margin-top: 80px; }
+  section h2 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  section h2 .num {
+    font-family: var(--mono);
+    color: var(--text-faint);
+    font-size: 14px;
+    font-weight: 400;
+    margin-right: 10px;
+  }
+  section .lead {
+    color: var(--text-dim);
+    margin-bottom: 24px;
+    max-width: 760px;
+  }
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 28px 0 10px;
+    color: var(--text);
+  }
+  p { margin: 0 0 12px; }
+  code, .mono { font-family: var(--mono); font-size: 13px; }
+  p code, li code {
+    background: var(--bg-raised);
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    font-size: 12px;
+  }
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted rgba(125, 211, 252, 0.3); }
+  a:hover { border-bottom-style: solid; }
+
+  /* Diagram containers */
+  .diagram {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin: 16px 0 24px;
+    overflow-x: auto;
+  }
+  .diagram svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+
+  /* Tables for agent casts */
+  table.cast {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 14px;
+  }
+  table.cast th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--text-dim);
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-strong);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  table.cast td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  table.cast tr:last-child td { border-bottom: none; }
+  table.cast tr:hover td { background: var(--bg-raised); }
+  table.cast .agent-name {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  table.cast .pattern-chip {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(251, 191, 36, 0.1);
+    color: var(--pattern);
+    border: 1px solid rgba(251, 191, 36, 0.25);
+    font-family: var(--mono);
+    cursor: pointer;
+    transition: all 0.15s;
+    margin: 1px 2px 1px 0;
+  }
+  table.cast .pattern-chip:hover {
+    background: rgba(251, 191, 36, 0.2);
+    border-color: var(--pattern);
+  }
+  table.cast .pattern-chip.deterministic {
+    background: rgba(134, 239, 172, 0.08);
+    color: var(--mech);
+    border-color: rgba(134, 239, 172, 0.25);
+  }
+  table.cast .model-tier {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  table.cast .model-tier.opus { color: var(--accent-2); }
+  table.cast .model-tier.sonnet { color: var(--accent); }
+  table.cast .model-tier.haiku { color: var(--accent-3); }
+  table.cast .model-tier.none { color: var(--text-faint); }
+
+  /* Pattern glossary */
+  .patterns-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 14px;
+    margin-top: 16px;
+  }
+  .pattern-card {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    transition: all 0.2s;
+  }
+  .pattern-card:target {
+    border-color: var(--pattern);
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.12);
+  }
+  .pattern-card h4 {
+    margin: 0 0 8px;
+    font-size: 14px;
+    font-family: var(--mono);
+    color: var(--pattern);
+    font-weight: 500;
+  }
+  .pattern-card p {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+  .pattern-card .refs {
+    font-size: 12px;
+  }
+  .pattern-card .refs a { margin-right: 10px; }
+
+  /* Key concept boxes */
+  .callout {
+    background: linear-gradient(180deg, rgba(125, 211, 252, 0.05), rgba(125, 211, 252, 0.02));
+    border: 1px solid rgba(125, 211, 252, 0.2);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .callout.warn {
+    background: linear-gradient(180deg, rgba(251, 191, 36, 0.06), rgba(251, 191, 36, 0.02));
+    border-color: rgba(251, 191, 36, 0.25);
+    border-left-color: var(--accent-warn);
+  }
+  .callout .lbl {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    display: block;
+    margin-bottom: 6px;
+  }
+  .callout.warn .lbl { color: var(--accent-warn); }
+
+  /* Decision cards */
+  .decisions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 16px;
+  }
+  @media (max-width: 800px) { .decisions { grid-template-columns: 1fr; } }
+  .decision {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .decision h4 {
+    margin: 0 0 8px;
+    font-size: 14px;
+    color: var(--accent-warn);
+  }
+  .decision p { font-size: 13px; color: var(--text-dim); margin: 6px 0; }
+
+  /* Layer stack diagram */
+  .layer-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 20px auto;
+    max-width: 640px;
+  }
+  .layer {
+    padding: 18px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    position: relative;
+  }
+  .layer.l3 {
+    background: linear-gradient(90deg, rgba(196, 181, 253, 0.08), rgba(196, 181, 253, 0.02));
+    border-color: rgba(196, 181, 253, 0.3);
+  }
+  .layer.l2 {
+    background: linear-gradient(90deg, rgba(125, 211, 252, 0.08), rgba(125, 211, 252, 0.02));
+    border-color: rgba(125, 211, 252, 0.3);
+  }
+  .layer.l1 {
+    background: linear-gradient(90deg, rgba(134, 239, 172, 0.08), rgba(134, 239, 172, 0.02));
+    border-color: rgba(134, 239, 172, 0.3);
+  }
+  .layer .ltitle {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .layer.l3 .ltitle { color: var(--persona); }
+  .layer.l2 .ltitle { color: var(--prose); }
+  .layer.l1 .ltitle { color: var(--mech); }
+  .layer .ldesc { font-size: 13px; color: var(--text-dim); }
+  .layer .lmeta {
+    position: absolute;
+    top: 18px;
+    right: 20px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+
+  footer {
+    padding-top: 40px;
+    margin-top: 60px;
+    border-top: 1px solid var(--border);
+    color: var(--text-faint);
+    font-size: 13px;
+    text-align: center;
+  }
+
+  /* SVG styles */
+  .node-rect { fill: var(--bg-card); stroke: var(--border-strong); stroke-width: 1.5; }
+  .node-text { fill: var(--text); font-family: var(--mono); font-size: 12px; text-anchor: middle; }
+  .node-text.sub { fill: var(--text-dim); font-size: 10px; }
+  .edge { stroke: var(--border-strong); stroke-width: 1.5; fill: none; }
+  .edge-label { fill: var(--text-dim); font-family: var(--mono); font-size: 10px; text-anchor: middle; }
+  .node-accent { stroke: var(--accent); stroke-width: 2; }
+  .node-mech { stroke: var(--mech); stroke-width: 2; }
+  .node-persona { stroke: var(--persona); stroke-width: 2; }
+  .node-warn { stroke: var(--accent-warn); stroke-width: 2; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="tag">if_fun</span>
+  <span class="tag" style="color: var(--accent-2); background: rgba(196, 181, 253, 0.08); border-color: rgba(196, 181, 253, 0.2);">draft · in brainstorm</span>
+  <h1>Interactive Fiction — Architecture Overview</h1>
+  <div class="sub">An Infocom homage built as a showcase of agentic AI patterns. Python + Textual + OpenRouter.</div>
+</header>
+
+<nav class="toc">
+  <a href="#overview">Overview</a>
+  <a href="#room-model">Room Model</a>
+  <a href="#phase-gen">Generation</a>
+  <a href="#phase-verify">Verification</a>
+  <a href="#phase-play">Play</a>
+  <a href="#topology">Topology</a>
+  <a href="#evals">Evaluation &amp; Observability</a>
+  <a href="#patterns">Pattern Glossary</a>
+  <a href="#decisions">Open Decisions</a>
+</nav>
+
+<!-- ========================================================= -->
+<section id="overview">
+  <h2><span class="num">§1</span>Overview</h2>
+  <p class="lead">The player picks a theme (fantasy, space, noir, etc.) and a size (small / large / xlarge). Generation agents build a world. Verification agents prove it is solvable and coherent. Play agents orchestrate a living turn-by-turn game. Save files preserve full state; templates preserve the world skeleton for replays.</p>
+
+  <div class="callout">
+    <span class="lbl">Core stance</span>
+    Agents sit on top of a deterministic substrate, not in place of it. Every room is a state machine. LLM calls produce prose, make judgments, and drive non-player characters — but the mechanics of the game are verifiable Python.
+  </div>
+
+  <h3>Decisions already locked</h3>
+  <ul>
+    <li><strong>Interface</strong>: Python Textual TUI, distributed as <code>uvx if_fun</code>. Potential Rust port once the agent guts are cemented.</li>
+    <li><strong>Input loop</strong>: hybrid parser + LLM-interpreter fallback. Canonical verbs parsed deterministically; unknowns routed to an Intent Interpreter.</li>
+    <li><strong>Generation strategy</strong>: skeleton eager, prose lazy. Structural layer (map, puzzle DAG, story beats, placements) generated and verified up front; per-room prose is canonical and frozen on first generation.</li>
+    <li><strong>Room model</strong>: rooms are state machines with an optional persona-agent overlay for ~5–15% of rooms (the memorable ones).</li>
+    <li><strong>Selective elevation</strong>: same pattern applied to rooms, mobs (most reactive, named antagonists get planners), and hints. Scale complexity with narrative importance.</li>
+    <li><strong>Verification</strong>: puzzle solvability proven by BFS over the composed state machine (model checking), not by LLM judgment. Editor revision loop capped at 3 iterations, fail loud on non-convergence.</li>
+    <li><strong>Theme enforcement</strong>: threaded into every generator's system prompt, not a dedicated agent. Story Critic catches violations in verification.</li>
+    <li><strong>Save format</strong>: single JSON file per save. Full snapshot every time.</li>
+    <li><strong>Prompt caching</strong>: world skeleton is the stable cacheable prefix; turn-specific context appends after the cache breakpoint.</li>
+    <li><strong>Testing</strong>: strict TDD for deterministic code; pydantic-contract + cassette tests for LLM code; live LLM eval suite excluded from pre-commit, run on CI / on-demand.</li>
+    <li><strong>Observability</strong>: Langfuse for traces, costs, and historical score comparison. Prompts live in git; Langfuse receives traces only.</li>
+  </ul>
+</section>
+
+<!-- ========================================================= -->
+<section id="room-model">
+  <h2><span class="num">§2</span>The Three-Layer Room Model</h2>
+  <p class="lead">Every room has mechanical state and canonical prose. Only selected rooms get an agent persona. Conflating these is the architectural mistake we are explicitly avoiding.</p>
+
+  <div class="layer-stack">
+    <div class="layer l3">
+      <div class="lmeta">optional · ~5–15% of rooms</div>
+      <div class="ltitle">Layer 3 — Persona</div>
+      <div class="ldesc">An LLM agent with voice, short-term memory, and optional autonomy. Narrates events in its room when invoked. Example: the Whispering Library that resents intruders and dims its lights when forbidden books are read.</div>
+    </div>
+    <div class="layer l2">
+      <div class="lmeta">frozen · always present</div>
+      <div class="ltitle">Layer 2 — Prose</div>
+      <div class="ldesc">Canonical description strings written once during generation and stored verbatim. <code>LOOK</code> returns this string byte-for-byte. Kills description drift before it starts.</div>
+    </div>
+    <div class="layer l1">
+      <div class="lmeta">deterministic · always present</div>
+      <div class="ltitle">Layer 1 — Mechanical</div>
+      <div class="ldesc">State variables, transitions, guards, effects. Pure Python, no LLM. Items present, occupants, flags (<code>door_north: locked</code>, <code>chandelier: hanging</code>). Serializable. Verifiable via model checking.</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <span class="lbl">Why the split matters</span>
+    Drift prevention is a layer-2 problem (freeze canonical text). Solvability is a layer-1 problem (BFS the state machine). Personality is a layer-3 problem (agent overlays). Each concern lives in exactly one layer. This keeps 90% of rooms cheap and fast while the memorable 10% get the expensive agent treatment.
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<section id="phase-gen">
+  <h2><span class="num">§3</span>Phase 1 — Generation</h2>
+  <p class="lead">Runs once when the player creates a new world. A sequential pipeline with a parallel fan-out at the prose stage.</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 300" width="1040" height="300">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--border-strong)" />
+        </marker>
+      </defs>
+
+      <!-- Phase 1 pipeline: sequential chain with parallel fanout -->
+      <!-- World Architect -->
+      <rect class="node-rect node-accent" x="20" y="120" width="140" height="60" rx="8" />
+      <text class="node-text" x="90" y="148">World Architect</text>
+      <text class="node-text sub" x="90" y="164">theme + size → concept</text>
+
+      <!-- Map Designer -->
+      <rect class="node-rect node-accent" x="190" y="120" width="140" height="60" rx="8" />
+      <text class="node-text" x="260" y="148">Map Designer</text>
+      <text class="node-text sub" x="260" y="164">concept → room graph</text>
+
+      <!-- Puzzle Designer -->
+      <rect class="node-rect node-accent" x="360" y="120" width="140" height="60" rx="8" />
+      <text class="node-text" x="430" y="148">Puzzle Designer</text>
+      <text class="node-text sub" x="430" y="164">map → puzzle DAG</text>
+
+      <!-- Inhabitant Designer -->
+      <rect class="node-rect node-accent" x="530" y="120" width="140" height="60" rx="8" />
+      <text class="node-text" x="600" y="148">Inhabitants</text>
+      <text class="node-text sub" x="600" y="164">items + mobs placement</text>
+
+      <!-- Prose writers (parallel fanout) -->
+      <rect class="node-rect node-accent" x="700" y="40" width="140" height="50" rx="8" />
+      <text class="node-text" x="770" y="62">Prose Writer</text>
+      <text class="node-text sub" x="770" y="78">room #1</text>
+      <rect class="node-rect node-accent" x="700" y="100" width="140" height="50" rx="8" />
+      <text class="node-text" x="770" y="122">Prose Writer</text>
+      <text class="node-text sub" x="770" y="138">room #2</text>
+      <rect class="node-rect node-accent" x="700" y="160" width="140" height="50" rx="8" />
+      <text class="node-text" x="770" y="182">Prose Writer</text>
+      <text class="node-text sub" x="770" y="198">… in parallel</text>
+      <rect class="node-rect node-accent" x="700" y="220" width="140" height="50" rx="8" />
+      <text class="node-text" x="770" y="242">Prose Writer</text>
+      <text class="node-text sub" x="770" y="258">room #N</text>
+
+      <!-- Story Weaver + Sentience Picker -->
+      <rect class="node-rect node-accent" x="870" y="90" width="150" height="50" rx="8" />
+      <text class="node-text" x="945" y="112">Story Weaver</text>
+      <text class="node-text sub" x="945" y="128">stitch arc</text>
+
+      <rect class="node-rect node-accent" x="870" y="160" width="150" height="50" rx="8" />
+      <text class="node-text" x="945" y="182">Sentience Picker</text>
+      <text class="node-text sub" x="945" y="198">pick persona rooms</text>
+
+      <!-- Edges -->
+      <path class="edge" d="M 160 150 L 190 150" marker-end="url(#arrow)" />
+      <path class="edge" d="M 330 150 L 360 150" marker-end="url(#arrow)" />
+      <path class="edge" d="M 500 150 L 530 150" marker-end="url(#arrow)" />
+      <path class="edge" d="M 670 150 L 695 65" marker-end="url(#arrow)" />
+      <path class="edge" d="M 670 150 L 695 125" marker-end="url(#arrow)" />
+      <path class="edge" d="M 670 150 L 695 185" marker-end="url(#arrow)" />
+      <path class="edge" d="M 670 150 L 695 245" marker-end="url(#arrow)" />
+      <path class="edge" d="M 840 65 L 870 110" marker-end="url(#arrow)" />
+      <path class="edge" d="M 840 125 L 870 115" marker-end="url(#arrow)" />
+      <path class="edge" d="M 840 245 L 870 180" marker-end="url(#arrow)" />
+      <path class="edge" d="M 840 185 L 870 185" marker-end="url(#arrow)" />
+
+      <!-- Labels -->
+      <text class="edge-label" x="520" y="20" style="font-size: 11px; fill: var(--pattern);">prompt chaining + parallelization</text>
+    </svg>
+  </div>
+
+  <table class="cast">
+    <thead><tr><th>Agent</th><th>Job</th><th>Pattern</th><th>Model</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="agent-name">World Architect</td>
+        <td>Takes <code>(theme, size)</code>, emits high-level concept: setting, arc, tone, rough scope.</td>
+        <td><a href="#p-chain" class="pattern-chip">prompt-chain</a></td>
+        <td class="model-tier opus">Opus</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Map Designer</td>
+        <td>Expands concept into a concrete room graph: nodes, edges, exits, geometry.</td>
+        <td><a href="#p-chain" class="pattern-chip">prompt-chain</a> <a href="#p-struct" class="pattern-chip">structured-output</a></td>
+        <td class="model-tier opus">Opus</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Puzzle Designer</td>
+        <td>Designs the puzzle DAG: locks, keys, triggers, each expressed as a state-machine fragment.</td>
+        <td><a href="#p-chain" class="pattern-chip">prompt-chain</a> <a href="#p-struct" class="pattern-chip">structured-output</a></td>
+        <td class="model-tier opus">Opus</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Inhabitant Designer</td>
+        <td>Places items and mobs across rooms consistent with puzzle dependencies.</td>
+        <td><a href="#p-chain" class="pattern-chip">prompt-chain</a></td>
+        <td class="model-tier sonnet">Sonnet</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Prose Writer</td>
+        <td>One call per room/item/mob. Writes the canonical description string. Fans out in parallel across dozens of entities.</td>
+        <td><a href="#p-parallel" class="pattern-chip">parallelization</a></td>
+        <td class="model-tier sonnet">Sonnet / Haiku</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Story Weaver</td>
+        <td>Writes opening, ending, story beats, NPC dialogue seeds. Stitches prose into a coherent arc.</td>
+        <td><a href="#p-chain" class="pattern-chip">prompt-chain</a></td>
+        <td class="model-tier sonnet">Sonnet</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Sentience Picker</td>
+        <td>Selects which ~5–15% of rooms deserve a persona-agent overlay based on story importance.</td>
+        <td><a href="#p-route" class="pattern-chip">routing</a></td>
+        <td class="model-tier haiku">Haiku</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ========================================================= -->
+<section id="phase-verify">
+  <h2><span class="num">§4</span>Phase 2 — Verification</h2>
+  <p class="lead">Every generated world goes through a battery of verifiers. Mechanical checks are deterministic code. Narrative checks are LLM critics. If any check fails, the Editor decides which generator to re-invoke and what feedback to give. Capped at three iterations.</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 320" width="1040" height="320">
+      <defs>
+        <marker id="arrow2" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--border-strong)" />
+        </marker>
+        <marker id="arrow2w" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent-warn)" />
+        </marker>
+      </defs>
+
+      <!-- Generated World -->
+      <rect class="node-rect node-accent" x="20" y="140" width="140" height="60" rx="8" />
+      <text class="node-text" x="90" y="168">Generated World</text>
+      <text class="node-text sub" x="90" y="184">skeleton + prose</text>
+
+      <!-- Parallel verifiers -->
+      <rect class="node-rect node-mech" x="240" y="30" width="160" height="50" rx="8" />
+      <text class="node-text" x="320" y="52" style="fill: var(--mech);">Map Verifier</text>
+      <text class="node-text sub" x="320" y="68">connectivity · code</text>
+
+      <rect class="node-rect node-mech" x="240" y="100" width="160" height="50" rx="8" />
+      <text class="node-text" x="320" y="122" style="fill: var(--mech);">Solvability Checker</text>
+      <text class="node-text sub" x="320" y="138">BFS · code · model-check</text>
+
+      <rect class="node-rect node-accent" x="240" y="190" width="160" height="50" rx="8" />
+      <text class="node-text" x="320" y="212">Story Critic</text>
+      <text class="node-text sub" x="320" y="228">coherence · LLM</text>
+
+      <rect class="node-rect node-accent" x="240" y="260" width="160" height="50" rx="8" />
+      <text class="node-text" x="320" y="282">Difficulty Judge</text>
+      <text class="node-text sub" x="320" y="298">matches size · LLM</text>
+
+      <!-- Editor -->
+      <rect class="node-rect node-warn" x="490" y="140" width="160" height="60" rx="8" />
+      <text class="node-text" x="570" y="168" style="fill: var(--accent-warn);">Editor</text>
+      <text class="node-text sub" x="570" y="184">evaluator-optimizer</text>
+
+      <!-- Outcomes -->
+      <rect class="node-rect" style="stroke: var(--mech); stroke-width: 2;" x="760" y="50" width="160" height="60" rx="8" />
+      <text class="node-text" x="840" y="78" style="fill: var(--mech);">Approved</text>
+      <text class="node-text sub" x="840" y="94">ship to player</text>
+
+      <rect class="node-rect" style="stroke: var(--accent-bad); stroke-width: 2;" x="760" y="230" width="160" height="60" rx="8" />
+      <text class="node-text" x="840" y="258" style="fill: var(--accent-bad);">Revise</text>
+      <text class="node-text sub" x="840" y="274">re-invoke generator</text>
+
+      <!-- Edges -->
+      <path class="edge" d="M 160 170 L 235 55" marker-end="url(#arrow2)" />
+      <path class="edge" d="M 160 170 L 235 125" marker-end="url(#arrow2)" />
+      <path class="edge" d="M 160 170 L 235 215" marker-end="url(#arrow2)" />
+      <path class="edge" d="M 160 170 L 235 285" marker-end="url(#arrow2)" />
+
+      <path class="edge" d="M 400 55 L 490 165" marker-end="url(#arrow2)" />
+      <path class="edge" d="M 400 125 L 490 170" marker-end="url(#arrow2)" />
+      <path class="edge" d="M 400 215 L 490 175" marker-end="url(#arrow2)" />
+      <path class="edge" d="M 400 285 L 490 180" marker-end="url(#arrow2)" />
+
+      <path class="edge" d="M 650 160 L 760 90" marker-end="url(#arrow2)" />
+      <path class="edge" d="M 650 180 L 760 250" marker-end="url(#arrow2)" />
+
+      <!-- Feedback loop (curving back) -->
+      <path d="M 840 290 Q 500 380 90 210" stroke="var(--accent-warn)" stroke-width="1.5" stroke-dasharray="5,4" fill="none" marker-end="url(#arrow2w)" />
+      <text class="edge-label" x="470" y="320" style="fill: var(--accent-warn);">feedback to upstream generator (max 3 iterations)</text>
+    </svg>
+  </div>
+
+  <table class="cast">
+    <thead><tr><th>Agent</th><th>Job</th><th>Pattern</th><th>Model</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="agent-name">Map Verifier</td>
+        <td>Checks graph connectivity, reachability from start, no orphaned rooms, geometry consistency (no A→B north but B→A east).</td>
+        <td><span class="pattern-chip deterministic">deterministic</span></td>
+        <td class="model-tier none">—</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Solvability Checker</td>
+        <td>BFS over the world state machine. Proves the win state is reachable from the start state. Emits a winning action trace.</td>
+        <td><a href="#p-modelcheck" class="pattern-chip">model-checking</a></td>
+        <td class="model-tier none">—</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Story Critic</td>
+        <td>Reads all prose end-to-end. Flags tonal drift, contradictions, un-Chekhovian guns, loose ends.</td>
+        <td><a href="#p-reflect" class="pattern-chip">reflection</a></td>
+        <td class="model-tier sonnet">Sonnet</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Difficulty Judge</td>
+        <td>Reads the solvability trace + puzzle DAG. Scores difficulty. Flags mismatches with the requested size tier.</td>
+        <td><a href="#p-reflect" class="pattern-chip">reflection</a></td>
+        <td class="model-tier sonnet">Sonnet</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Editor</td>
+        <td>Reads all verifier reports. On failure, decides which upstream generator to re-invoke and with what feedback. Caps iterations.</td>
+        <td><a href="#p-evalopt" class="pattern-chip">evaluator-optimizer</a></td>
+        <td class="model-tier opus">Opus</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ========================================================= -->
+<section id="phase-play">
+  <h2><span class="num">§5</span>Phase 3 — Play</h2>
+  <p class="lead">Every turn: player input flows through a router (deterministic parser, with LLM fallback for novel phrasings) into the Game Master, which applies state-machine transitions and dispatches workers to produce the turn output.</p>
+
+  <table class="cast">
+    <thead><tr><th>Agent</th><th>Job</th><th>Pattern</th><th>Model</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="agent-name">Parser</td>
+        <td>Maps canonical verb-object inputs (<code>go north</code>, <code>take lamp</code>) to structured actions. Falls through on unknown.</td>
+        <td><span class="pattern-chip deterministic">deterministic</span></td>
+        <td class="model-tier none">—</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Intent Interpreter</td>
+        <td>LLM fallback. Takes free-form player text + game context. Either normalizes to a canonical action or marks as creative / conversational.</td>
+        <td><a href="#p-route" class="pattern-chip">routing</a></td>
+        <td class="model-tier haiku">Haiku</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Game Master</td>
+        <td><strong>Hot path</strong> (most turns): apply canonical state transition, dispatch narrator, return. Single LLM call or zero. <strong>Cold path</strong> (novel or free-form input): enter a ReAct loop — reason about intent, probe state via tools, propose transitions, observe legality, revise. Assembles final turn output either way.</td>
+        <td><a href="#p-orch" class="pattern-chip">orchestrator-workers</a> <a href="#p-react" class="pattern-chip">react</a> <a href="#p-tool" class="pattern-chip">tool-use</a></td>
+        <td class="model-tier sonnet">Sonnet</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Narrator</td>
+        <td>Default voice. Given the mechanical delta + canonical prose + recent event log, produces the turn's prose output.</td>
+        <td><span class="pattern-chip">worker</span></td>
+        <td class="model-tier sonnet">Sonnet</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Room Persona</td>
+        <td>For sentient rooms only. GM hands off narration when the player is in/entering one. <strong>Autonomous variant</strong> (room has goals, like the Whispering Library wanting to keep secrets): runs a ReAct loop — reason about player behavior, pick an effect (dim lights, whisper, reveal a secret), observe, revise.</td>
+        <td><a href="#p-handoff" class="pattern-chip">handoff</a> <a href="#p-react" class="pattern-chip">react</a></td>
+        <td class="model-tier sonnet">Sonnet</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Mob Agent</td>
+        <td><strong>Reactive tier</strong> (rats, goblins, patrol guards): single-shot per turn — perceive local state, pick an action, return. <strong>Planner tier</strong> (named antagonists, recurring NPCs): full ReAct loop with persistent multi-turn goals and a current plan; revises when the plan fails.</td>
+        <td><a href="#p-hier" class="pattern-chip">hierarchical</a> <a href="#p-react" class="pattern-chip">react</a> <a href="#p-tool" class="pattern-chip">tool-use</a></td>
+        <td class="model-tier haiku">Haiku / Sonnet</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Memory Curator</td>
+        <td>Prunes context, summarizes distant events, decides what to include in each LLM call. Prevents GM prompts from ballooning.</td>
+        <td><a href="#p-mem" class="pattern-chip">context-engineering</a></td>
+        <td class="model-tier haiku">Haiku</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ========================================================= -->
+<section id="topology">
+  <h2><span class="num">§6</span>Play-Phase Communication Topology</h2>
+  <p class="lead">The big picture: how a single turn flows. Deterministic components have green borders; LLM-driven components have blue or purple borders.</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 520" width="1040" height="520">
+      <defs>
+        <marker id="arrow3" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--border-strong)" />
+        </marker>
+      </defs>
+
+      <!-- Player -->
+      <rect class="node-rect" style="stroke: var(--text-dim); stroke-width: 2;" x="440" y="10" width="160" height="50" rx="8" />
+      <text class="node-text" x="520" y="32">Player input</text>
+      <text class="node-text sub" x="520" y="48">free-form text</text>
+
+      <!-- Parser -->
+      <rect class="node-rect node-mech" x="290" y="100" width="160" height="50" rx="8" />
+      <text class="node-text" x="370" y="122" style="fill: var(--mech);">Parser</text>
+      <text class="node-text sub" x="370" y="138">canonical verbs · code</text>
+
+      <!-- Intent Interpreter -->
+      <rect class="node-rect node-accent" x="590" y="100" width="160" height="50" rx="8" />
+      <text class="node-text" x="670" y="122">Intent Interpreter</text>
+      <text class="node-text sub" x="670" y="138">LLM fallback</text>
+
+      <!-- Game Master -->
+      <rect class="node-rect node-warn" x="430" y="220" width="180" height="70" rx="8" />
+      <text class="node-text" x="520" y="248" style="fill: var(--accent-warn); font-size: 14px;">Game Master</text>
+      <text class="node-text sub" x="520" y="266">orchestrator</text>
+      <text class="node-text sub" x="520" y="280">applies transitions · dispatches</text>
+
+      <!-- State Store (below GM) -->
+      <rect class="node-rect node-mech" x="20" y="310" width="160" height="60" rx="8" />
+      <text class="node-text" x="100" y="338" style="fill: var(--mech);">State Store</text>
+      <text class="node-text sub" x="100" y="354">pydantic · single source</text>
+
+      <!-- Narrator -->
+      <rect class="node-rect node-accent" x="220" y="310" width="160" height="60" rx="8" />
+      <text class="node-text" x="300" y="338">Narrator</text>
+      <text class="node-text sub" x="300" y="354">default voice</text>
+
+      <!-- Room Persona -->
+      <rect class="node-rect node-persona" x="420" y="310" width="180" height="60" rx="8" />
+      <text class="node-text" x="510" y="338" style="fill: var(--persona);">Room Persona</text>
+      <text class="node-text sub" x="510" y="354">handoff · sentient rooms only</text>
+
+      <!-- Mob Agents -->
+      <rect class="node-rect node-accent" x="640" y="310" width="160" height="60" rx="8" />
+      <text class="node-text" x="720" y="338">Mob Agents</text>
+      <text class="node-text sub" x="720" y="354">per-mob cognition</text>
+
+      <!-- Memory Curator -->
+      <rect class="node-rect node-accent" x="840" y="310" width="180" height="60" rx="8" />
+      <text class="node-text" x="930" y="338">Memory Curator</text>
+      <text class="node-text sub" x="930" y="354">context engineering</text>
+
+      <!-- Turn Output -->
+      <rect class="node-rect" style="stroke: var(--text-dim); stroke-width: 2;" x="440" y="440" width="160" height="50" rx="8" />
+      <text class="node-text" x="520" y="462">Turn Output</text>
+      <text class="node-text sub" x="520" y="478">prose to player</text>
+
+      <!-- Edges -->
+      <path class="edge" d="M 480 60 L 400 100" marker-end="url(#arrow3)" />
+      <path class="edge" d="M 560 60 L 640 100" marker-end="url(#arrow3)" />
+      <text class="edge-label" x="370" y="82" style="fill: var(--mech);">known verb</text>
+      <text class="edge-label" x="685" y="82" style="fill: var(--pattern);">unknown → fallback</text>
+
+      <path class="edge" d="M 420 150 L 480 220" marker-end="url(#arrow3)" />
+      <path class="edge" d="M 630 150 L 560 220" marker-end="url(#arrow3)" />
+
+      <!-- GM → children (tool calls + handoffs) -->
+      <path class="edge" d="M 470 290 L 120 310" marker-end="url(#arrow3)" />
+      <path class="edge" d="M 485 290 L 310 310" marker-end="url(#arrow3)" />
+      <path class="edge" d="M 520 290 L 510 310" marker-end="url(#arrow3)" />
+      <path class="edge" d="M 560 290 L 710 310" marker-end="url(#arrow3)" />
+      <path class="edge" d="M 580 290 L 910 310" marker-end="url(#arrow3)" />
+
+      <!-- Children return to GM & to output -->
+      <path class="edge" d="M 100 370 Q 100 420 440 445" marker-end="url(#arrow3)" />
+      <path class="edge" d="M 300 370 L 480 440" marker-end="url(#arrow3)" />
+      <path class="edge" d="M 510 370 L 520 440" marker-end="url(#arrow3)" />
+      <path class="edge" d="M 720 370 L 560 440" marker-end="url(#arrow3)" />
+
+      <!-- GM feedback from memory curator -->
+      <path class="edge" style="stroke-dasharray: 4 3;" d="M 840 335 L 615 250" marker-end="url(#arrow3)" />
+      <text class="edge-label" x="740" y="290">context feed</text>
+
+      <!-- Legend -->
+      <rect x="20" y="440" width="14" height="14" rx="3" style="fill: none; stroke: var(--mech); stroke-width: 2;" />
+      <text style="fill: var(--text-dim); font-family: var(--mono); font-size: 11px;" x="42" y="452">deterministic · code</text>
+      <rect x="20" y="462" width="14" height="14" rx="3" style="fill: none; stroke: var(--accent); stroke-width: 2;" />
+      <text style="fill: var(--text-dim); font-family: var(--mono); font-size: 11px;" x="42" y="474">LLM agent</text>
+      <rect x="20" y="484" width="14" height="14" rx="3" style="fill: none; stroke: var(--persona); stroke-width: 2;" />
+      <text style="fill: var(--text-dim); font-family: var(--mono); font-size: 11px;" x="42" y="496">selective LLM (persona)</text>
+    </svg>
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<section id="evals">
+  <h2><span class="num">§7</span>Evaluation &amp; Observability</h2>
+  <p class="lead">Agentic systems drift silently. A disciplined eval framework + always-on tracing is how we catch regressions before users do. Every LLM call is traced to Langfuse; every LLM-backed agent has a pytest-driven eval suite.</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1040 360" width="1040" height="360">
+      <defs>
+        <marker id="arrow4" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--border-strong)" />
+        </marker>
+      </defs>
+
+      <!-- Agent code (source) -->
+      <rect class="node-rect node-accent" x="20" y="150" width="160" height="60" rx="8" />
+      <text class="node-text" x="100" y="178">LLM Agent Call</text>
+      <text class="node-text sub" x="100" y="194">@observe wrapped</text>
+
+      <!-- Langfuse tracing (live) -->
+      <rect class="node-rect" style="stroke: var(--accent-2); stroke-width: 2;" x="240" y="40" width="180" height="60" rx="8" />
+      <text class="node-text" x="330" y="68" style="fill: var(--accent-2);">Langfuse</text>
+      <text class="node-text sub" x="330" y="84">traces · costs · scores</text>
+
+      <!-- Prompts in git -->
+      <rect class="node-rect node-mech" x="240" y="150" width="180" height="60" rx="8" />
+      <text class="node-text" x="330" y="178" style="fill: var(--mech);">Prompts (git)</text>
+      <text class="node-text sub" x="330" y="194">if_fun/prompts/*.j2</text>
+
+      <!-- Eval datasets -->
+      <rect class="node-rect node-mech" x="240" y="260" width="180" height="60" rx="8" />
+      <text class="node-text" x="330" y="288" style="fill: var(--mech);">Eval Datasets</text>
+      <text class="node-text sub" x="330" y="304">evals/datasets/*.jsonl</text>
+
+      <!-- Pytest eval runner -->
+      <rect class="node-rect node-warn" x="490" y="150" width="180" height="60" rx="8" />
+      <text class="node-text" x="580" y="178" style="fill: var(--accent-warn);">Pytest Eval Runner</text>
+      <text class="node-text sub" x="580" y="194">(model, prompt) × cases</text>
+
+      <!-- LLM judges -->
+      <rect class="node-rect node-persona" x="490" y="260" width="180" height="60" rx="8" />
+      <text class="node-text" x="580" y="288" style="fill: var(--persona);">LLM Judges</text>
+      <text class="node-text sub" x="580" y="304">for subjective outputs</text>
+
+      <!-- Tier outputs -->
+      <rect class="node-rect" style="stroke: var(--mech); stroke-width: 2;" x="750" y="40" width="250" height="50" rx="8" />
+      <text class="node-text" x="875" y="62" style="fill: var(--mech);">default / pre-commit</text>
+      <text class="node-text sub" x="875" y="78">no live LLM · cassettes + deterministic</text>
+
+      <rect class="node-rect" style="stroke: var(--accent); stroke-width: 2;" x="750" y="105" width="250" height="50" rx="8" />
+      <text class="node-text" x="875" y="127">eval_smoke</text>
+      <text class="node-text sub" x="875" y="143">~5 cases · nightly CI · drift detect</text>
+
+      <rect class="node-rect" style="stroke: var(--accent-warn); stroke-width: 2;" x="750" y="170" width="250" height="50" rx="8" />
+      <text class="node-text" x="875" y="192" style="fill: var(--accent-warn);">eval_full</text>
+      <text class="node-text sub" x="875" y="208">full dataset · adopt new model/prompt</text>
+
+      <!-- Bottom notes -->
+      <rect class="node-rect" style="stroke: var(--accent-2); stroke-width: 2;" x="750" y="265" width="250" height="50" rx="8" />
+      <text class="node-text" x="875" y="287" style="fill: var(--accent-2);">Langfuse Dashboard</text>
+      <text class="node-text sub" x="875" y="303">compare runs · view regressions</text>
+
+      <!-- Edges -->
+      <path class="edge" d="M 180 170 L 240 80" marker-end="url(#arrow4)" />
+      <path class="edge" d="M 180 180 L 240 180" marker-end="url(#arrow4)" />
+      <path class="edge" d="M 420 180 L 490 180" marker-end="url(#arrow4)" />
+      <path class="edge" d="M 420 290 L 490 200" marker-end="url(#arrow4)" />
+      <path class="edge" d="M 580 220 L 580 260" marker-end="url(#arrow4)" />
+      <path class="edge" d="M 670 175 L 750 65" marker-end="url(#arrow4)" />
+      <path class="edge" d="M 670 180 L 750 130" marker-end="url(#arrow4)" />
+      <path class="edge" d="M 670 190 L 750 195" marker-end="url(#arrow4)" />
+      <path class="edge" style="stroke-dasharray: 4 3;" d="M 420 70 L 750 60" />
+      <path class="edge" style="stroke-dasharray: 4 3;" d="M 670 290 Q 740 290 750 290" marker-end="url(#arrow4)" />
+
+      <!-- Caption -->
+      <text class="edge-label" x="520" y="345" style="font-size: 11px;">Prompts live in git. Traces, scores, and historical comparisons live in Langfuse. Pytest orchestrates.</text>
+    </svg>
+  </div>
+
+  <h3>What gets evaluated</h3>
+  <table class="cast">
+    <thead><tr><th>Agent</th><th>Eval approach</th><th>Scoring</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="agent-name">Map Designer</td>
+        <td>Generate → run Map Verifier on output → check graph properties (connectivity, no one-way orphans, exit count distribution).</td>
+        <td>Deterministic</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Puzzle Designer</td>
+        <td>Generate → run Solvability Checker → assert win-state reachable, DAG depth matches size tier.</td>
+        <td>Deterministic</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Intent Interpreter</td>
+        <td>Golden dataset of player utterances → expected canonical action (or "free-form"). Measure exact-match + near-miss.</td>
+        <td>Deterministic</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Narrator</td>
+        <td>Dataset of (state delta, expected tone). LLM-judge scores: on-theme, descriptive, doesn't contradict canonical prose.</td>
+        <td>LLM-judge</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Room Persona</td>
+        <td>Dataset of (persona spec, triggering event, context). LLM-judge scores: voice consistency, appropriateness, does not break game state.</td>
+        <td>LLM-judge</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Mob Agent</td>
+        <td>Dataset of (mob state, local perception). Assert valid action chosen; LLM-judge scores believability for named antagonists.</td>
+        <td>Mixed</td>
+      </tr>
+      <tr>
+        <td class="agent-name">Story Critic, Difficulty Judge, Editor</td>
+        <td>Regression dataset of known-bad worlds with known defects. Assert critics flag the expected issues.</td>
+        <td>Deterministic</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Directory layout (preview)</h3>
+  <div class="callout">
+<pre style="margin:0; font-family: var(--mono); font-size: 12px; color: var(--text-dim);">
+if_fun/
+  prompts/                  # Jinja templates — source of truth, versioned in git
+    world_architect.j2
+    map_designer.j2
+    narrator.j2
+    ...
+  agents/                   # @observe-wrapped agent functions
+    world_architect.py
+    map_designer.py
+    ...
+evals/
+  conftest.py               # fixtures: model matrix, langfuse client, cassette loader
+  datasets/
+    world_architect/cases.jsonl
+    map_designer/cases.jsonl
+    ...
+  checks/                   # pydantic + domain assertions
+    world_architect.py
+    ...
+  judges/                   # Jinja templates for LLM-judge scoring
+    coherence.j2
+    difficulty.j2
+  test_&lt;agent&gt;_eval.py      # parametrized over (model, prompt_version) × cases
+</pre>
+  </div>
+
+  <div class="callout warn">
+    <span class="lbl">Prompt source of truth</span>
+    Prompts live in <code>if_fun/prompts/</code> under git. Langfuse receives <em>traces</em> and <em>scores</em>, not prompts. This keeps code and prompt changes atomic in a single commit and preserves <code>git bisect</code>. Optionally mirror prompts to Langfuse for their comparison UI, but never fetch at runtime.
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<section id="patterns">
+  <h2><span class="num">§8</span>Agentic Pattern Glossary</h2>
+  <p class="lead">Definitions and canonical references for every pattern used in the architecture. The patterns Anthropic calls "building blocks" come from <a href="https://www.anthropic.com/research/building-effective-agents" target="_blank">Building Effective Agents</a>; others are standard in the broader literature.</p>
+
+  <div class="callout">
+    <span class="lbl">Orienting distinction — workflows vs. agents</span>
+    Anthropic draws a useful line: <strong>workflows</strong> have topology you design in advance (a chain, a router, an orchestrator calling known workers). <strong>Agents</strong> have LLM-driven control flow — the model decides what to do next in a loop. Our Generation pipeline is a workflow. Our Planner Mobs and the GM's cold path are agents. Both are legitimate; workflows are more predictable and cheaper, agents handle open-ended tasks. Most production "agent systems" are workflows with agent-shaped subcomponents.
+  </div>
+
+  <div class="patterns-grid">
+
+    <div class="pattern-card" id="p-react">
+      <h4>react</h4>
+      <p>Reason + Act. An agent interleaves reasoning ("Thought: ...") with tool calls ("Action: ...") and observations in a loop, until the task is done. The foundational agentic-loop pattern from Yao et al. 2022.</p>
+      <p><strong>Status note:</strong> the literal text-parsed <code>Thought:/Action:/Observation:</code> format is largely obsolete — native tool calling replaced it. What survives is the <em>loop shape</em>: reason → act → observe → repeat. Most modern "agents" (as distinct from workflows) are ReAct-shaped whether or not the paper is cited. Often composes underneath other named patterns (orchestrator, evaluator-optimizer).</p>
+      <div class="refs">
+        <a href="https://arxiv.org/abs/2210.03629" target="_blank">ReAct paper</a>
+        <a href="https://www.anthropic.com/research/building-effective-agents" target="_blank">Anthropic (agents vs workflows)</a>
+      </div>
+    </div>
+
+    <div class="pattern-card" id="p-chain">
+      <h4>prompt-chain</h4>
+      <p>A fixed sequence of LLM calls where each step's output feeds the next. Good for workflows that decompose into predictable stages (plan → expand → refine). Trade-off: lower latency sometimes for accuracy, since each step specializes.</p>
+      <div class="refs">
+        <a href="https://www.anthropic.com/research/building-effective-agents" target="_blank">Anthropic</a>
+      </div>
+    </div>
+
+    <div class="pattern-card" id="p-route">
+      <h4>routing</h4>
+      <p>A classifier (deterministic or LLM) directs input to one of several downstream handlers. Lets you use cheap specialists for cheap cases and expensive ones where needed.</p>
+      <div class="refs">
+        <a href="https://www.anthropic.com/research/building-effective-agents" target="_blank">Anthropic</a>
+      </div>
+    </div>
+
+    <div class="pattern-card" id="p-parallel">
+      <h4>parallelization</h4>
+      <p>Same task runs on multiple inputs concurrently (sectioning) or multiple perspectives run on the same input and results merge (voting). Reduces wall time and improves robustness.</p>
+      <div class="refs">
+        <a href="https://www.anthropic.com/research/building-effective-agents" target="_blank">Anthropic</a>
+      </div>
+    </div>
+
+    <div class="pattern-card" id="p-orch">
+      <h4>orchestrator-workers</h4>
+      <p>A central orchestrator LLM breaks tasks down, dispatches specialized workers, and synthesizes their outputs. The orchestrator decides dynamically which workers to invoke.</p>
+      <div class="refs">
+        <a href="https://www.anthropic.com/research/building-effective-agents" target="_blank">Anthropic</a>
+      </div>
+    </div>
+
+    <div class="pattern-card" id="p-evalopt">
+      <h4>evaluator-optimizer</h4>
+      <p>A generator produces output, an evaluator judges it, feedback loops to the generator until the output passes. Classic for quality-gated generation.</p>
+      <div class="refs">
+        <a href="https://www.anthropic.com/research/building-effective-agents" target="_blank">Anthropic</a>
+      </div>
+    </div>
+
+    <div class="pattern-card" id="p-reflect">
+      <h4>reflection</h4>
+      <p>A critic agent (often the same model with a different prompt) reviews its own or another agent's output and emits structured feedback. Reflexion paper formalizes this with a memory of past critiques.</p>
+      <div class="refs">
+        <a href="https://arxiv.org/abs/2303.11366" target="_blank">Reflexion (Shinn et al.)</a>
+      </div>
+    </div>
+
+    <div class="pattern-card" id="p-tool">
+      <h4>tool-use</h4>
+      <p>An LLM calls typed functions (tools) that read or mutate external state. The model's job becomes choosing which tool and what arguments. Every state mutation in our architecture goes through a tool.</p>
+      <div class="refs">
+        <a href="https://docs.anthropic.com/en/docs/agents-and-tools/tool-use" target="_blank">Anthropic docs</a>
+        <a href="https://platform.openai.com/docs/guides/function-calling" target="_blank">OpenAI</a>
+      </div>
+    </div>
+
+    <div class="pattern-card" id="p-handoff">
+      <h4>handoff</h4>
+      <p>One agent transfers control (and context) to another, typically for a specialization reason. The first agent stops, the second takes over. Used when dispatch decisions happen at runtime based on context.</p>
+      <div class="refs">
+        <a href="https://openai.github.io/openai-agents-python/" target="_blank">OpenAI Agents SDK</a>
+      </div>
+    </div>
+
+    <div class="pattern-card" id="p-hier">
+      <h4>hierarchical</h4>
+      <p>Agents nest: a parent orchestrator contains child agents that themselves may contain sub-agents. Mobs-under-GM is a one-level nesting. LangGraph's multi-agent docs treat this as a graph of graphs.</p>
+      <div class="refs">
+        <a href="https://langchain-ai.github.io/langgraph/concepts/multi_agent/" target="_blank">LangGraph</a>
+      </div>
+    </div>
+
+    <div class="pattern-card" id="p-struct">
+      <h4>structured-output</h4>
+      <p>LLM output is constrained to a typed schema (JSON / pydantic / zod). Makes downstream code reliable. <code>pydantic-ai</code> and <code>instructor</code> are the Python mainstays.</p>
+      <div class="refs">
+        <a href="https://ai.pydantic.dev/" target="_blank">pydantic-ai</a>
+        <a href="https://python.useinstructor.com/" target="_blank">instructor</a>
+      </div>
+    </div>
+
+    <div class="pattern-card" id="p-modelcheck">
+      <h4>model-checking</h4>
+      <p>Not an agent pattern — a verification technique. Exhaustively explores a finite state space to prove a property (like "the win state is reachable"). We use BFS over the world state machine for puzzle solvability.</p>
+      <div class="refs">
+        <a href="https://en.wikipedia.org/wiki/Model_checking" target="_blank">Wikipedia</a>
+      </div>
+    </div>
+
+    <div class="pattern-card" id="p-mem">
+      <h4>context-engineering</h4>
+      <p>The discipline of deciding what goes into each LLM call: what to cache, what to summarize, what to drop. Prompt caching, memory curation, and retrieval all fall here.</p>
+      <div class="refs">
+        <a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents" target="_blank">Anthropic</a>
+      </div>
+    </div>
+
+    <div class="pattern-card" id="p-judge">
+      <h4>llm-as-judge</h4>
+      <p>An LLM scores another LLM's output against criteria (coherence, tone, factuality). Used for subjective evaluation that deterministic checks can't cover. Best paired with reference outputs and a rubric to reduce variance.</p>
+      <div class="refs">
+        <a href="https://arxiv.org/abs/2306.05685" target="_blank">MT-Bench paper</a>
+        <a href="https://huggingface.co/learn/cookbook/en/llm_judge" target="_blank">HF cookbook</a>
+      </div>
+    </div>
+
+    <div class="pattern-card" id="p-observe">
+      <h4>observability-as-code</h4>
+      <p>Every LLM call is traced — inputs, outputs, latency, cost, tokens, model version — to a dedicated backend. Not an agent pattern, but a non-negotiable discipline for production agentic systems. Langfuse, LangSmith, Arize Phoenix, and Helicone are current options.</p>
+      <div class="refs">
+        <a href="https://langfuse.com/docs" target="_blank">Langfuse</a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ========================================================= -->
+<section id="decisions">
+  <h2><span class="num">§9</span>Open Decisions</h2>
+  <p class="lead">Four things I'd like your call on before we lock the design and write the spec.</p>
+
+  <div class="decisions">
+    <div class="decision">
+      <h4>1 · Editor revision loop</h4>
+      <p>Most agentically interesting piece, but also where spirals can happen. Keep the evaluator-optimizer loop (up to 3 iterations), or fail fast and regenerate from scratch on any verification failure?</p>
+    </div>
+    <div class="decision">
+      <h4>2 · Mob cognition depth</h4>
+      <p>Do mobs <em>plan</em> (think multi-turn ahead, form goals) or just <em>react</em> (decide this turn only)? Planning impresses; reactive is cheaper and less prone to weirdness. Could also vary per-mob.</p>
+    </div>
+    <div class="decision">
+      <h4>3 · Hint Giver agent</h4>
+      <p>Player types <code>HINT</code> and receives an escalating nudge sequence. Not in the current diagram. Want it in v1, or later?</p>
+    </div>
+    <div class="decision">
+      <h4>4 · Theme authority</h4>
+      <p>Who enforces "this is a space game, not a fantasy game"? A dedicated Theme Warden agent (more agentic), or a constraint threaded through every generator's system prompt (cheaper, simpler)?</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Architecture overview · in brainstorm · <span class="mono">if_fun</span>
+</footer>
+
+</div>
+</body>
+</html>
