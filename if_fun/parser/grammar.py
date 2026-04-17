@@ -1,4 +1,10 @@
-"""Canonical verb grammar for the Phase A parser."""
+"""Canonical verb grammar for the Phase A parser.
+
+Aliases are lowercased strings matched exactly against caller-supplied tokens.
+Some aliases span multiple words (currently "look at") — callers must try
+two-word alias lookups before falling back to single-token lookup; a naive
+split-on-whitespace-then-match will miss these.
+"""
 
 from enum import StrEnum
 
