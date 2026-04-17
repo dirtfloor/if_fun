@@ -10,7 +10,11 @@ Layout:
               |
               N (requires brass_key)
               |
-     [vault] -W- [entry_hall] -S- [library]
+       [entry_hall] -E- [vault]
+              |
+              S
+              |
+          [library]
 
 Locked doors are modeled as bare-exit geometry plus a guarded DirectionTrigger
 transition. find_direction_transition prefers the explicit transition, so the
