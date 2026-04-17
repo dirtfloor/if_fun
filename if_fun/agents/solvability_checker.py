@@ -2,14 +2,13 @@
 
 import time
 from collections import deque
-from collections.abc import Iterable
+from collections.abc import Iterator
 
 from pydantic import BaseModel, ConfigDict
 
 from if_fun.ids import Direction
 from if_fun.world.state import WorldState
 from if_fun.world.store import (
-    IllegalAction,
     apply_transition,
     find_direction_transition,
     legal_transitions,
@@ -26,7 +25,7 @@ class SolvabilityReport(BaseModel):
     timed_out: bool
 
 
-def _candidate_transitions(world: WorldState) -> Iterable[Transition]:
+def _candidate_transitions(world: WorldState) -> Iterator[Transition]:
     yield from legal_transitions(world)
     # Implicit direction moves: bare exits without a declared DirectionTrigger.
     # legal_transitions already yielded any explicit DirectionTrigger transitions,
@@ -73,16 +72,19 @@ def check_solvability(
 
         state, trace = queue.popleft()
 
+        # _candidate_transitions only yields guard-passed transitions (via
+        # legal_transitions) and guard-less implicit moves, so apply_transition
+        # cannot raise IllegalAction here. Intentionally no try/except — if a
+        # future change breaks that invariant we want the crash to be loud.
         for tr in _candidate_transitions(state):
-            try:
-                next_state = apply_transition(state, tr)
-            except IllegalAction:
-                continue
+            next_state = apply_transition(state, tr)
             fp = _fingerprint(next_state)
             if fp in seen:
                 continue
             next_trace = (*trace, tr.id)
             if next_state.is_won():
+                # Winning state is never added to `seen`; +1 accounts for it so
+                # states_explored = start + intermediates + winner.
                 return SolvabilityReport(
                     solvable=True,
                     winning_trace=next_trace,
