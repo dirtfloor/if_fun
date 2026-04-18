@@ -32,3 +32,23 @@ def test_five_room_world_has_brass_key_in_vault() -> None:
     w = build_five_room_world()
     vault = w.rooms[RoomId("vault")]
     assert ItemId("brass_key") in vault.items_present
+
+
+def test_five_room_descriptions_do_not_mention_movable_items() -> None:
+    """Room prose must not reference items that can be moved.
+
+    The items registry renders item presence in the Items: line, so prose
+    that hard-codes "the brass key rests on a plinth" goes stale the moment
+    the player takes it. Guard against regressions by checking each room's
+    description against each moveable item's display name and id.
+    """
+    w = build_five_room_world()
+    movable = {it.id for it in w.items.values()}
+    for room in w.rooms.values():
+        desc = room.description.lower()
+        for item_id in movable:
+            assert item_id not in desc, f"room {room.id} prose mentions id {item_id}"
+            definition = w.items[item_id]
+            assert definition.display_name.lower() not in desc, (
+                f"room {room.id} prose mentions display_name {definition.display_name!r}"
+            )

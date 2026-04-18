@@ -26,5 +26,5 @@ def test_scripted_playthrough_wins() -> None:
 def test_scripted_playthrough_fails_without_brass_key() -> None:
     eng = TurnEngine(build_five_room_world())
     out = eng.submit("north")  # locked without brass_key
-    assert "can't" in out.lower()
+    assert "locked" in out.lower()
     assert not eng.world.is_won()

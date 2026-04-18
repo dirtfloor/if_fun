@@ -4,8 +4,9 @@ from typing import Any, Literal, assert_never
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from if_fun.ids import RoomId
+from if_fun.ids import ItemId, RoomId
 from if_fun.world.events import Event
+from if_fun.world.items import ItemDef
 from if_fun.world.player import PlayerState
 from if_fun.world.rooms import RoomState
 
@@ -23,6 +24,7 @@ class WorldState(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     rooms: dict[RoomId, RoomState]
+    items: dict[ItemId, ItemDef] = Field(default_factory=dict)
     player: PlayerState
     globals: dict[str, Any] = Field(default_factory=dict)
     turn: int = Field(default=0, ge=0)
