@@ -30,6 +30,7 @@ from if_fun.world.effects import (
     RemoveItemFromRoomEffect,
 )
 from if_fun.world.guards import HasItemGuard, PlayerInRoomGuard
+from if_fun.world.items import ItemDef
 from if_fun.world.player import PlayerState
 from if_fun.world.rooms import RoomState
 from if_fun.world.state import WinCondition, WorldState
@@ -46,6 +47,7 @@ def _take(room_id: str, item_id: str) -> Transition:
             RemoveItemFromRoomEffect(room_id=RoomId(room_id), item_id=ItemId(item_id)),
             AddItemToInventoryEffect(item_id=ItemId(item_id)),
         ],
+        narration_hint="Taken.",
     )
 
 
@@ -78,14 +80,20 @@ def build_five_room_world() -> WorldState:
     )
     vault = RoomState(
         id=RoomId("vault"),
-        description="Cold stone walls. A tarnished brass key rests on a plinth.",
+        description=(
+            "Cold stone walls ring a narrow chamber. A plinth stands in the centre, "
+            "worn smooth by centuries of reverent hands."
+        ),
         exits={Direction.WEST: RoomId("entry_hall")},
         items_present=frozenset({ItemId("brass_key")}),
         transitions=(_take("vault", "brass_key"),),
     )
     library = RoomState(
         id=RoomId("library"),
-        description="Shelves of brittle books. A silver key and a pale crystal sit on a desk.",
+        description=(
+            "Shelves of brittle books line every wall. A reading desk occupies the centre, "
+            "its surface cluttered with things long forgotten."
+        ),
         exits={Direction.NORTH: RoomId("entry_hall")},
         items_present=frozenset({ItemId("silver_key"), ItemId("crystal")}),
         transitions=(
@@ -110,8 +118,30 @@ def build_five_room_world() -> WorldState:
 
     rooms = {r.id: r for r in (entry_hall, vault, library, ritual_chamber, treasury)}
 
+    items = {
+        ItemId("brass_key"): ItemDef(
+            id=ItemId("brass_key"),
+            display_name="brass key",
+            article="a",
+            short_description="A tarnished brass key. It looks old but serviceable.",
+        ),
+        ItemId("silver_key"): ItemDef(
+            id=ItemId("silver_key"),
+            display_name="silver key",
+            article="a",
+            short_description="A delicate silver key, etched with unfamiliar symbols.",
+        ),
+        ItemId("crystal"): ItemDef(
+            id=ItemId("crystal"),
+            display_name="pale crystal",
+            article="a",
+            short_description="A pale crystal that catches the light oddly.",
+        ),
+    }
+
     return WorldState(
         rooms=rooms,
+        items=items,
         player=PlayerState(location=RoomId("entry_hall")),
         win_condition=WinCondition(kind="player_in_room", args={"room_id": "treasury"}),
     )

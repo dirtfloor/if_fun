@@ -36,6 +36,17 @@ class RemoveItemFromRoomEffect(_EffectBase):
     item_id: ItemId
 
 
+class RemoveItemFromInventoryEffect(_EffectBase):
+    type: Literal["remove_item_from_inventory"] = "remove_item_from_inventory"
+    item_id: ItemId
+
+
+class AddItemToRoomEffect(_EffectBase):
+    type: Literal["add_item_to_room"] = "add_item_to_room"
+    room_id: RoomId
+    item_id: ItemId
+
+
 class SetRoomFlagEffect(_EffectBase):
     type: Literal["set_room_flag"] = "set_room_flag"
     room_id: RoomId
@@ -60,6 +71,8 @@ Effect = Annotated[
     MovePlayerEffect
     | AddItemToInventoryEffect
     | RemoveItemFromRoomEffect
+    | RemoveItemFromInventoryEffect
+    | AddItemToRoomEffect
     | SetRoomFlagEffect
     | SetGlobalFlagEffect
     | EmitEventEffect,
@@ -83,6 +96,18 @@ def apply(effect: Effect, world: "WorldState") -> "WorldState":
         case RemoveItemFromRoomEffect(room_id=room_id, item_id=item_id):
             room = world.rooms[room_id]
             new_items = room.items_present - {item_id}
+            new_room = room.model_copy(update={"items_present": new_items})
+            new_rooms = {**world.rooms, room_id: new_room}
+            return world.model_copy(update={"rooms": new_rooms})
+
+        case RemoveItemFromInventoryEffect(item_id=item_id):
+            new_inv = world.player.inventory - {item_id}
+            new_player = world.player.model_copy(update={"inventory": new_inv})
+            return world.model_copy(update={"player": new_player})
+
+        case AddItemToRoomEffect(room_id=room_id, item_id=item_id):
+            room = world.rooms[room_id]
+            new_items = room.items_present | {item_id}
             new_room = room.model_copy(update={"items_present": new_items})
             new_rooms = {**world.rooms, room_id: new_room}
             return world.model_copy(update={"rooms": new_rooms})

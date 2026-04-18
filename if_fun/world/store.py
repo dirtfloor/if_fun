@@ -1,5 +1,7 @@
 """StateStore service: matches actions to transitions, applies them purely."""
 
+from enum import Enum
+
 from if_fun.ids import Direction, EventId
 from if_fun.world.effects import MovePlayerEffect
 from if_fun.world.effects import apply as apply_effect
@@ -11,6 +13,33 @@ from if_fun.world.transitions import Action, DirectionTrigger, Transition, VerbO
 
 class IllegalAction(Exception):
     """Raised when an action does not match a legal transition in the current state."""
+
+
+class DirectionStatus(Enum):
+    OPEN = "open"
+    LOCKED = "locked"
+    WALL = "wall"
+
+
+def classify_direction(world: WorldState, direction: Direction) -> DirectionStatus:
+    """Return whether ``direction`` is traversable from the player's current room.
+
+    OPEN   — a bare exit with no guarded transition, or a guarded transition
+             whose guards all currently pass.
+    LOCKED — a DirectionTrigger transition exists but at least one of its
+             guards fails in the current world state.
+    WALL   — neither a bare exit nor any DirectionTrigger transition exists
+             for this direction.
+    """
+    room = world.rooms[world.player.location]
+    for tr in room.transitions:
+        if isinstance(tr.trigger, DirectionTrigger) and tr.trigger.direction is direction:
+            if all(evaluate_guard(g, world) for g in tr.guards):
+                return DirectionStatus.OPEN
+            return DirectionStatus.LOCKED
+    if direction in room.exits:
+        return DirectionStatus.OPEN
+    return DirectionStatus.WALL
 
 
 def find_transition(world: WorldState, action: Action) -> Transition | None:
